@@ -1,0 +1,57 @@
+const mongoose = require('mongoose');
+
+const leaveSchema = new mongoose.Schema(
+  {
+    employee: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    startDate: {
+      type: String,
+      required: [true, 'Start date is required'],
+    },
+    endDate: {
+      type: String,
+      required: [true, 'End date is required'],
+    },
+    reason: {
+      type: String,
+      required: [true, 'Reason is required'],
+      trim: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending',
+    },
+    reviewedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    },
+    reviewedAt: {
+      type: Date,
+    },
+    reviewNote: {
+      type: String,
+      trim: true,
+    },
+    totalDays: {
+      type: Number,
+    },
+  },
+  { timestamps: true }
+);
+
+// Auto-calculate total days before saving
+leaveSchema.pre('save', function (next) {
+  if (this.startDate && this.endDate) {
+    const start = new Date(this.startDate);
+    const end = new Date(this.endDate);
+    const diff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    this.totalDays = diff > 0 ? diff : 1;
+  }
+  next();
+});
+
+module.exports = mongoose.model('Leave', leaveSchema);
