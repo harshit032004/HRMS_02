@@ -5,25 +5,25 @@ import api from '../utils/api';
 export default function Dashboard() {
   const { user, isManager } = useAuth();
   const [stats, setStats] = useState(null);
+  const [recentLeaves, setRecentLeaves] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchData();
+    fetchDashboard();
   }, []);
 
-  const fetchData = async () => {
+  const fetchDashboard = async () => {
     try {
-      if (isManager()) {
-        const res = await api.get('/dashboard/admin');
-        setStats(res.data.stats);
-        setEmployees(res.data.employees);
-      } else {
-        const res = await api.get('/dashboard/employee');
-        setStats(res.data.stats);
-      }
+      setError('');
+      const endpoint = isManager() ? '/dashboard/admin' : '/dashboard/employee';
+      const res = await api.get(endpoint);
+      setStats(res.data.stats);
+      setRecentLeaves(res.data.recentLeaves || []);
+      setEmployees(res.data.employees || []);
     } catch (err) {
-      console.error(err);
+      setError('Failed to load dashboard data. Please refresh.');
     } finally {
       setLoading(false);
     }
@@ -31,113 +31,176 @@ export default function Dashboard() {
 
   if (loading) return <div className="loading">Loading dashboard...</div>;
 
+  // ── HR / Admin / Manager Dashboard ──
   if (isManager()) {
     return (
       <div className="page-container">
         <div className="page-header">
-          <h1 className="page-title">Employee Dashboard</h1>
+          <h1 className="page-title">HR Dashboard</h1>
+          <p style={{ color: '#6b7280', marginTop: 4 }}>Welcome back, {user?.name}</p>
         </div>
 
-        <div className="stats-grid">
+        {error && <div className="alert alert-error">{error}</div>}
+
+        {/* Stats Cards */}
+        <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
           <div className="stat-card">
-            <div className="stat-label">
-              Total Employees
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-                <circle cx="9" cy="7" r="4" /><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2" />
-              </svg>
-            </div>
+            <div className="stat-label">Total Employees</div>
             <div className="stat-value">{stats?.totalEmployees ?? 0}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">
-              Active Status
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-              </svg>
-            </div>
-            <div className="stat-value">{stats?.activeStatus ?? 0}</div>
+            <div className="stat-label">Pending Leaves</div>
+            <div className="stat-value" style={{ color: '#f59e0b' }}>{stats?.pendingLeaves ?? 0}</div>
           </div>
           <div className="stat-card">
-            <div className="stat-label">
-              Departments
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="2">
-                <rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
-              </svg>
-            </div>
-            <div className="stat-value">{stats?.departments ?? 0}</div>
+            <div className="stat-label">Approved Leaves</div>
+            <div className="stat-value" style={{ color: '#10b981' }}>{stats?.approvedLeaves ?? 0}</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-label">Rejected Leaves</div>
+            <div className="stat-value" style={{ color: '#ef4444' }}>{stats?.rejectedLeaves ?? 0}</div>
           </div>
         </div>
 
-        <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">Employee List</h2>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 24 }}>
+          {/* Pending Leave Requests */}
+          <div className="card">
+            <div className="card-header">
+              <h2 className="card-title">Pending Requests</h2>
+              <p className="card-subtitle">Requires your action</p>
+            </div>
+            {recentLeaves.length === 0 ? (
+              <p className="empty-state">No pending leave requests 🎉</p>
+            ) : (
+              recentLeaves.map((leave) => (
+                <div key={leave._id} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: '12px 0', borderBottom: '1px solid #f3f4f6'
+                }}>
+                  <div>
+                    <p style={{ fontWeight: 600, fontSize: 14 }}>{leave.employee?.name}</p>
+                    <p style={{ fontSize: 12, color: '#6b7280' }}>
+                      {leave.startDate} → {leave.endDate} ({leave.totalDays}d)
+                    </p>
+                    <p style={{ fontSize: 12, color: '#9ca3af' }}>{leave.reason}</p>
+                  </div>
+                  <span className="badge badge-pending">Pending</span>
+                </div>
+              ))
+            )}
           </div>
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Department</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {employees.length === 0 ? (
-                  <tr><td colSpan="5" className="empty-state">No employees found.</td></tr>
-                ) : (
-                  employees.map((emp) => (
+
+          {/* Employee List */}
+          <div className="card">
+            <div className="card-header">
+              <h2 className="card-title">Employee List</h2>
+              <p className="card-subtitle">{employees.length} total</p>
+            </div>
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Department</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.slice(0, 8).map((emp) => (
                     <tr key={emp._id}>
-                      <td className="td-name">{emp.name}</td>
-                      <td>{emp.email}</td>
-                      <td>{emp.jobTitle || emp.role}</td>
-                      <td>{emp.department || '—'}</td>
+                      <td>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{emp.name}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{emp.email}</div>
+                      </td>
+                      <td style={{ fontSize: 13 }}>{emp.department || '—'}</td>
+                      <td style={{ fontSize: 13, textTransform: 'capitalize' }}>{emp.role}</td>
                       <td>
                         <span className={`badge ${emp.isActive ? 'badge-active' : 'badge-rejected'}`}>
                           {emp.isActive ? 'Active' : 'Inactive'}
                         </span>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Employee dashboard
+  // ── Employee Dashboard ──
+  const statusColor = {
+    'checked-in': '#10b981',
+    'checked-out': '#6366f1',
+    'not-checked-in': '#ef4444',
+  };
+  const statusLabel = {
+    'checked-in': 'Checked In',
+    'checked-out': 'Checked Out',
+    'not-checked-in': 'Not Checked In',
+  };
+
   return (
     <div className="page-container">
       <div className="page-header">
-        <h1 className="page-title">Welcome, {user?.name}</h1>
+        <h1 className="page-title">Welcome, {user?.name} 👋</h1>
+        <p style={{ color: '#6b7280', marginTop: 4 }}>{user?.jobTitle} · {user?.department}</p>
       </div>
+
+      {error && <div className="alert alert-error">{error}</div>}
 
       <div className="stats-grid">
         <div className="stat-card">
           <div className="stat-label">Today's Status</div>
-          <div style={{ marginTop: 10 }}>
-            <span className={`badge ${
-              stats?.todayStatus === 'checked-in' ? 'badge-present' :
-              stats?.todayStatus === 'checked-out' ? 'badge-active' : 'badge-rejected'
-            }`} style={{ fontSize: 16, padding: '6px 16px' }}>
-              {stats?.todayStatus === 'checked-in' ? 'Checked In' :
-               stats?.todayStatus === 'checked-out' ? 'Checked Out' : 'Not Checked In'}
-            </span>
+          <div style={{
+            marginTop: 12, fontSize: 18, fontWeight: 700,
+            color: statusColor[stats?.todayStatus] || '#374151'
+          }}>
+            {statusLabel[stats?.todayStatus] || 'Unknown'}
           </div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Pending Leaves</div>
-          <div className="stat-value">{stats?.pendingLeaves ?? 0}</div>
+          <div className="stat-value" style={{ color: '#f59e0b' }}>{stats?.pendingLeaves ?? 0}</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Approved Leaves</div>
-          <div className="stat-value">{stats?.approvedLeaves ?? 0}</div>
+          <div className="stat-value" style={{ color: '#10b981' }}>{stats?.approvedLeaves ?? 0}</div>
         </div>
       </div>
+
+      {/* Recent Leave History */}
+      {recentLeaves.length > 0 && (
+        <div className="card">
+          <div className="card-header">
+            <h2 className="card-title">Recent Leave Requests</h2>
+          </div>
+          <div className="table-container">
+            <table>
+              <thead>
+                <tr><th>Duration</th><th>Type</th><th>Reason</th><th>Status</th></tr>
+              </thead>
+              <tbody>
+                {recentLeaves.map((leave) => (
+                  <tr key={leave._id}>
+                    <td style={{ fontSize: 13 }}>{leave.startDate} → {leave.endDate}</td>
+                    <td style={{ fontSize: 13, textTransform: 'capitalize' }}>{leave.leaveType || 'casual'}</td>
+                    <td style={{ fontSize: 13 }}>{leave.reason}</td>
+                    <td>
+                      <span className={`badge badge-${leave.status}`}>
+                        {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

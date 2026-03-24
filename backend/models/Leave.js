@@ -7,6 +7,11 @@ const leaveSchema = new mongoose.Schema(
       ref: 'User',
       required: true,
     },
+    leaveType: {
+      type: String,
+      enum: ['casual', 'sick', 'earned', 'maternity', 'paternity', 'other'],
+      default: 'casual',
+    },
     startDate: {
       type: String,
       required: [true, 'Start date is required'],
@@ -28,22 +33,25 @@ const leaveSchema = new mongoose.Schema(
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      default: null,
     },
     reviewedAt: {
       type: Date,
+      default: null,
     },
     reviewNote: {
       type: String,
       trim: true,
+      default: '',
     },
     totalDays: {
       type: Number,
+      default: 1,
     },
   },
   { timestamps: true }
 );
 
-// Auto-calculate total days before saving
 leaveSchema.pre('save', function (next) {
   if (this.startDate && this.endDate) {
     const start = new Date(this.startDate);

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 
 function formatDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-IN');
+  return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 export default function LeaveApprovals() {
@@ -11,67 +11,114 @@ export default function LeaveApprovals() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
   const [actionLoading, setActionLoading] = useState('');
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState({ text: '', type: '' });
+  const [reviewNote, setReviewNote] = useState('');
+  const [selectedId, setSelectedId] = useState(null);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState('');
 
-  useEffect(() => {
-    fetchLeaves();
-  }, [filter]);
-
-  const fetchLeaves = async () => {
+  const fetchLeaves = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get(`/leaves/all${filter !== 'all' ? `?status=${filter}` : ''}`);
+      const url = filter === 'all' ? '/leaves/all' : `/leaves/all?status=${filter}`;
+      const res = await api.get(url);
       setLeaves(res.data.leaves);
     } catch (err) {
-      console.error(err);
+      showMessage('Failed to fetch leave requests', 'error');
     } finally {
       setLoading(false);
     }
+  }, [filter]);
+
+  useEffect(() => {
+    fetchLeaves();
+  }, [fetchLeaves]);
+
+  const showMessage = (text, type = 'success') => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage({ text: '', type: '' }), 4000);
   };
 
-  const handleReview = async (id, status) => {
-    setActionLoading(id + status);
-    setMessage('');
+  // Open modal for optional review note before approving/rejecting
+  const openReviewModal = (id, action) => {
+    setSelectedId(id);
+    setPendingAction(action);
+    setReviewNote('');
+    setShowNoteModal(true);
+  };
+
+  const handleReview = async () => {
+    setShowNoteModal(false);
+    setActionLoading(selectedId + pendingAction);
     try {
-      await api.put(`/leaves/${id}/review`, { status });
-      setMessage(`Leave ${status} successfully!`);
+      await api.patch(`/leaves/${selectedId}/${pendingAction}`, { reviewNote });
+      showMessage(`Leave ${pendingAction} successfully!`, 'success');
       fetchLeaves();
-      setTimeout(() => setMessage(''), 3000);
     } catch (err) {
-      alert(err.response?.data?.message || 'Failed to update');
+      showMessage(err.response?.data?.message || `Failed to ${pendingAction} leave`, 'error');
+    } finally {
+      setActionLoading('');
+      setSelectedId(null);
+    }
+  };
+
+  // Quick action without note
+  const quickAction = async (id, action) => {
+    setActionLoading(id + action);
+    try {
+      await api.patch(`/leaves/${id}/${action}`, { reviewNote: '' });
+      showMessage(`Leave ${action} successfully!`, 'success');
+      fetchLeaves();
+    } catch (err) {
+      showMessage(err.response?.data?.message || `Failed to ${action} leave`, 'error');
     } finally {
       setActionLoading('');
     }
+  };
+
+  const counts = {
+    pending: leaves.filter((l) => l.status === 'pending').length,
+    approved: leaves.filter((l) => l.status === 'approved').length,
+    rejected: leaves.filter((l) => l.status === 'rejected').length,
   };
 
   return (
     <div className="page-container">
       <div className="page-header">
         <h1 className="page-title">Leave Approvals</h1>
+        <p style={{ color: '#6b7280', marginTop: 4 }}>Review and manage employee leave requests</p>
       </div>
 
-      {message && <div className="alert alert-success">{message}</div>}
+      {message.text && (
+        <div className={`alert alert-${message.type === 'error' ? 'error' : 'success'}`}>
+          {message.text}
+        </div>
+      )}
 
-      {/* Filter tabs */}
+      {/* Filter Tabs */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-        {['pending', 'approved', 'rejected', 'all'].map((f) => (
+        {[
+          { key: 'pending', label: `Pending`, color: '#f59e0b' },
+          { key: 'approved', label: `Approved`, color: '#10b981' },
+          { key: 'rejected', label: `Rejected`, color: '#ef4444' },
+          { key: 'all', label: 'All', color: '#6366f1' },
+        ].map(({ key, label, color }) => (
           <button
-            key={f}
-            onClick={() => setFilter(f)}
+            key={key}
+            onClick={() => setFilter(key)}
             style={{
-              padding: '8px 18px',
+              padding: '8px 20px',
               borderRadius: 8,
               border: '1px solid',
-              borderColor: filter === f ? '#4f46e5' : '#e5e7eb',
-              background: filter === f ? '#4f46e5' : 'white',
-              color: filter === f ? 'white' : '#374151',
+              borderColor: filter === key ? color : '#e5e7eb',
+              background: filter === key ? color : 'white',
+              color: filter === key ? 'white' : '#374151',
               fontWeight: 500,
               fontSize: 13,
               cursor: 'pointer',
-              textTransform: 'capitalize',
             }}
           >
-            {f}
+            {label}
           </button>
         ))}
       </div>
@@ -92,7 +139,7 @@ export default function LeaveApprovals() {
               <thead>
                 <tr>
                   <th>Employee</th>
-                  <th>Department</th>
+                  <th>Leave Type</th>
                   <th>Duration</th>
                   <th>Days</th>
                   <th>Reason</th>
@@ -108,24 +155,34 @@ export default function LeaveApprovals() {
                   leaves.map((leave) => (
                     <tr key={leave._id}>
                       <td>
-                        <div className="td-name">{leave.employee?.name}</div>
-                        <div style={{ fontSize: 12, color: '#9ca3af' }}>{leave.employee?.email}</div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>{leave.employee?.name}</div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{leave.employee?.department || '—'}</div>
+                        <div style={{ fontSize: 11, color: '#c4b5fd' }}>{leave.employee?.employeeId}</div>
                       </td>
-                      <td>{leave.employee?.department || '—'}</td>
-                      <td style={{ fontSize: 13 }}>
+                      <td style={{ textTransform: 'capitalize', fontSize: 13 }}>
+                        {leave.leaveType || 'casual'}
+                      </td>
+                      <td style={{ fontSize: 12 }}>
                         {leave.startDate}<br />
                         <span style={{ color: '#9ca3af' }}>to</span> {leave.endDate}
                       </td>
-                      <td>{leave.totalDays} day{leave.totalDays !== 1 ? 's' : ''}</td>
-                      <td>{leave.reason}</td>
-                      <td>{formatDate(leave.createdAt)}</td>
+                      <td style={{ fontWeight: 600, textAlign: 'center' }}>{leave.totalDays}</td>
+                      <td style={{ fontSize: 13, maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {leave.reason}
+                      </td>
+                      <td style={{ fontSize: 13 }}>{formatDate(leave.createdAt)}</td>
                       <td>
                         <span className={`badge badge-${leave.status}`}>
                           {leave.status.charAt(0).toUpperCase() + leave.status.slice(1)}
                         </span>
                         {leave.reviewedBy && (
-                          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 3 }}>
+                          <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
                             by {leave.reviewedBy.name}
+                          </div>
+                        )}
+                        {leave.reviewNote && (
+                          <div style={{ fontSize: 11, color: '#6b7280', fontStyle: 'italic', marginTop: 2 }}>
+                            "{leave.reviewNote}"
                           </div>
                         )}
                       </td>
@@ -134,17 +191,24 @@ export default function LeaveApprovals() {
                           <div className="action-btns">
                             <button
                               className="btn btn-success btn-sm"
-                              onClick={() => handleReview(leave._id, 'approved')}
-                              disabled={actionLoading === leave._id + 'approved'}
+                              onClick={() => quickAction(leave._id, 'approve')}
+                              disabled={actionLoading === leave._id + 'approve'}
                             >
-                              ✓ Approve
+                              {actionLoading === leave._id + 'approve' ? '...' : '✓'}
                             </button>
                             <button
                               className="btn btn-danger btn-sm"
-                              onClick={() => handleReview(leave._id, 'rejected')}
-                              disabled={actionLoading === leave._id + 'rejected'}
+                              onClick={() => quickAction(leave._id, 'reject')}
+                              disabled={actionLoading === leave._id + 'reject'}
                             >
-                              ✗ Reject
+                              {actionLoading === leave._id + 'reject' ? '...' : '✗'}
+                            </button>
+                            <button
+                              className="btn btn-outline btn-sm"
+                              onClick={() => openReviewModal(leave._id, 'approve')}
+                              style={{ fontSize: 11 }}
+                            >
+                              + Note
                             </button>
                           </div>
                         )}
@@ -157,6 +221,38 @@ export default function LeaveApprovals() {
           </div>
         )}
       </div>
+
+      {/* Review Note Modal */}
+      {showNoteModal && (
+        <div className="modal-overlay" onClick={() => setShowNoteModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h3 className="modal-title">
+              {pendingAction === 'approve' ? '✓ Approve' : '✗ Reject'} Leave
+            </h3>
+            <div className="form-group">
+              <label className="form-label">Review Note (optional)</label>
+              <textarea
+                className="form-input"
+                placeholder="Add a note for the employee..."
+                value={reviewNote}
+                onChange={(e) => setReviewNote(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowNoteModal(false)}>
+                Cancel
+              </button>
+              <button
+                className={`btn ${pendingAction === 'approve' ? 'btn-success' : 'btn-danger'}`}
+                onClick={handleReview}
+              >
+                Confirm {pendingAction === 'approve' ? 'Approval' : 'Rejection'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -20,20 +20,18 @@ export default function Attendance() {
   const [allRecords, setAllRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
+  const [message, setMessage] = useState({ text: '', type: '' });
 
-  useEffect(() => {
-    fetchAttendance();
-  }, []);
+  useEffect(() => { fetchAttendance(); }, []);
 
   const fetchAttendance = async () => {
     try {
-      const todayRes = await api.get('/attendance/today');
+      const [todayRes, myRes] = await Promise.all([
+        api.get('/attendance/today'),
+        api.get('/attendance/my'),
+      ]);
       setTodayRecord(todayRes.data.attendance);
       setStatus(todayRes.data.status);
-
-      const myRes = await api.get('/attendance/my');
       setRecords(myRes.data.records);
 
       if (isManager()) {
@@ -47,16 +45,19 @@ export default function Attendance() {
     }
   };
 
+  const showMsg = (text, type = 'success') => {
+    setMessage({ text, type });
+    setTimeout(() => setMessage({ text: '', type: '' }), 3000);
+  };
+
   const handleClockIn = async () => {
     setActionLoading(true);
-    setError('');
-    setMessage('');
     try {
       await api.post('/attendance/checkin');
-      setMessage('Checked in successfully!');
+      showMsg('Checked in successfully!');
       fetchAttendance();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to clock in');
+      showMsg(err.response?.data?.message || 'Failed to clock in', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -64,14 +65,12 @@ export default function Attendance() {
 
   const handleClockOut = async () => {
     setActionLoading(true);
-    setError('');
-    setMessage('');
     try {
       await api.put('/attendance/checkout');
-      setMessage('Checked out successfully!');
+      showMsg('Checked out successfully!');
       fetchAttendance();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to clock out');
+      showMsg(err.response?.data?.message || 'Failed to clock out', 'error');
     } finally {
       setActionLoading(false);
     }
@@ -79,68 +78,70 @@ export default function Attendance() {
 
   if (loading) return <div className="loading">Loading attendance...</div>;
 
-  const viewingName = isManager() ? 'All Employees' : user?.name;
-
   return (
     <div className="page-container">
       <div className="page-top-bar">
-        <h1 className="page-title">Attendance Management</h1>
+        <div>
+          <h1 className="page-title">Attendance</h1>
+          <p style={{ color: '#6b7280', marginTop: 4, fontSize: 13 }}>
+            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
+        </div>
         <div className="status-badge-bar">
-          <span className="status-text">
-            Status: <strong>{status === 'checked-in' ? 'Checked In' : status === 'checked-out' ? 'Checked Out' : 'Checked Out'}</strong>
-          </span>
-          {status === 'not-checked-in' || status === 'checked-out' ? (
-            !todayRecord?.checkOut && (
-              <button
-                className="btn-clock"
-                onClick={handleClockIn}
-                disabled={actionLoading || status === 'checked-out'}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
-                </svg>
-                Clock In
-              </button>
-            )
-          ) : (
-            <button
-              className="btn-clock checkout"
-              onClick={handleClockOut}
-              disabled={actionLoading}
-            >
+          {todayRecord?.checkIn && (
+            <span style={{ fontSize: 13, color: '#6b7280' }}>
+              In: <strong style={{ color: '#111' }}>{formatTime(todayRecord.checkIn)}</strong>
+              {todayRecord?.checkOut && (
+                <> &nbsp;Out: <strong style={{ color: '#111' }}>{formatTime(todayRecord.checkOut)}</strong></>
+              )}
+            </span>
+          )}
+          {status === 'not-checked-in' && (
+            <button className="btn-clock" onClick={handleClockIn} disabled={actionLoading}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
               </svg>
-              Clock Out
+              {actionLoading ? 'Clocking In...' : 'Clock In'}
             </button>
+          )}
+          {status === 'checked-in' && (
+            <button className="btn-clock checkout" onClick={handleClockOut} disabled={actionLoading}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+              </svg>
+              {actionLoading ? 'Clocking Out...' : 'Clock Out'}
+            </button>
+          )}
+          {status === 'checked-out' && (
+            <span className="badge badge-active" style={{ padding: '8px 16px', fontSize: 13 }}>
+              ✓ Done for today — {todayRecord?.workHours}h worked
+            </span>
           )}
         </div>
       </div>
 
-      {message && <div className="alert alert-success">{message}</div>}
-      {error && <div className="alert alert-error">{error}</div>}
+      {message.text && (
+        <div className={`alert alert-${message.type === 'error' ? 'error' : 'success'}`}>
+          {message.text}
+        </div>
+      )}
 
+      {/* My Attendance */}
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">My Attendance History</h2>
-          <p className="card-subtitle">Viewing records for {user?.name}</p>
+          <p className="card-subtitle">{records.length} records</p>
         </div>
         <div className="table-container">
           <table>
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Check In</th>
-                <th>Check Out</th>
-                <th>Work Hours</th>
-                <th>Status</th>
+                <th>Date</th><th>Check In</th><th>Check Out</th><th>Work Hours</th><th>Status</th>
               </tr>
             </thead>
             <tbody>
               {records.length === 0 ? (
-                <tr>
-                  <td colSpan="5" className="empty-state">No attendance records found.</td>
-                </tr>
+                <tr><td colSpan="5" className="empty-state">No attendance records yet.</td></tr>
               ) : (
                 records.map((r) => (
                   <tr key={r._id}>
@@ -161,27 +162,27 @@ export default function Attendance() {
         </div>
       </div>
 
+      {/* All Employees (Manager view) */}
       {isManager() && allRecords.length > 0 && (
         <div className="card" style={{ marginTop: 24 }}>
           <div className="card-header">
-            <h2 className="card-title">All Employees Attendance</h2>
+            <h2 className="card-title">All Employees — Today's Attendance</h2>
+            <p className="card-subtitle">{allRecords.length} records</p>
           </div>
           <div className="table-container">
             <table>
               <thead>
                 <tr>
-                  <th>Employee</th>
-                  <th>Date</th>
-                  <th>Check In</th>
-                  <th>Check Out</th>
-                  <th>Work Hours</th>
-                  <th>Status</th>
+                  <th>Employee</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {allRecords.map((r) => (
                   <tr key={r._id}>
-                    <td className="td-name">{r.employee?.name}</td>
+                    <td>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{r.employee?.name}</div>
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.employee?.department}</div>
+                    </td>
                     <td>{formatDate(r.date)}</td>
                     <td>{formatTime(r.checkIn)}</td>
                     <td>{formatTime(r.checkOut)}</td>
