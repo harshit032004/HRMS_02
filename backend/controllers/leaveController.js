@@ -1,9 +1,42 @@
 const Leave = require('../models/Leave');
 const User = require('../models/User');
 
+// Helper: after populate, fix any leaves where employee is still null
+// This happens when old leave records reference deleted/re-seeded user IDs
+const fixOrphanedEmployees = async (leaves) => {
+  // Get all unique employee IDs that failed to populate (employee is null or not an object)
+  const orphanedLeaves = leaves.filter(
+    (l) => !l.employee || typeof l.employee !== 'object' || !l.employee.name
+  );
+
+  if (orphanedLeaves.length === 0) return leaves;
+
+  // Try to find users by matching all users and map by _id
+  const allUsers = await User.find({}).select('name email department jobTitle employeeId');
+  const userMap = {};
+  allUsers.forEach((u) => { userMap[u._id.toString()] = u; });
+
+  // Patch each orphaned leave with the found user
+  leaves.forEach((leave) => {
+    const empId = leave.employee?._id
+      ? leave.employee._id.toString()
+      : leave.employee?.toString?.() || '';
+
+    if (!leave.employee || typeof leave.employee !== 'object' || !leave.employee.name) {
+      const foundUser = userMap[empId];
+      if (foundUser) {
+        leave.employee = foundUser;
+      }
+      // If still not found, leave it — frontend will show "Unknown Employee"
+    }
+  });
+
+  return leaves;
+};
+
 // @desc  Apply for leave
 // @route POST /api/leaves/apply
-// @access Private (any logged-in user)
+// @access Private
 const applyLeave = async (req, res) => {
   try {
     const { startDate, endDate, reason, leaveType } = req.body;
@@ -45,7 +78,7 @@ const applyLeave = async (req, res) => {
 
 // @desc  Get own leave history
 // @route GET /api/leaves/my
-// @access Private (employee sees only their own)
+// @access Private
 const getMyLeaves = async (req, res) => {
   try {
     const { status } = req.query;
@@ -53,6 +86,7 @@ const getMyLeaves = async (req, res) => {
     if (status && status !== 'all') query.status = status;
 
     const leaves = await Leave.find(query)
+      .populate('employee', 'name email department employeeId')
       .populate('reviewedBy', 'name role')
       .sort({ createdAt: -1 });
 
@@ -71,10 +105,13 @@ const getAllLeaves = async (req, res) => {
     const query = {};
     if (status && status !== 'all') query.status = status;
 
-    const leaves = await Leave.find(query)
+    let leaves = await Leave.find(query)
       .populate('employee', 'name email department jobTitle employeeId')
       .populate('reviewedBy', 'name role')
       .sort({ createdAt: -1 });
+
+    // Fix any old/orphaned records where populate returned null
+    leaves = await fixOrphanedEmployees(leaves);
 
     res.json({ success: true, count: leaves.length, leaves });
   } catch (err) {
@@ -152,7 +189,7 @@ const rejectLeave = async (req, res) => {
 
 // @desc  Cancel own pending leave
 // @route DELETE /api/leaves/:id
-// @access Private (own leave only)
+// @access Private
 const cancelLeave = async (req, res) => {
   try {
     const leave = await Leave.findById(req.params.id);

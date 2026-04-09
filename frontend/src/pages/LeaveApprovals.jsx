@@ -155,9 +155,15 @@ export default function LeaveApprovals() {
                   leaves.map((leave) => (
                     <tr key={leave._id}>
                       <td>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{leave.employee?.name}</div>
-                        <div style={{ fontSize: 11, color: '#9ca3af' }}>{leave.employee?.department || '—'}</div>
-                        <div style={{ fontSize: 11, color: '#c4b5fd' }}>{leave.employee?.employeeId}</div>
+                        <div style={{ fontWeight: 600, fontSize: 14 }}>
+                          {leave.employee?.name || leave.employee?.email?.split('@')[0] || 'Unknown Employee'}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                          {leave.employee?.email || '—'}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>
+                          {leave.employee?.department || ''}{leave.employee?.employeeId ? ` · ${leave.employee.employeeId}` : ''}
+                        </div>
                       </td>
                       <td style={{ textTransform: 'capitalize', fontSize: 13 }}>
                         {leave.leaveType || 'casual'}

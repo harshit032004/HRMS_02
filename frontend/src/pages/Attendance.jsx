@@ -12,6 +12,24 @@ function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+// Safely get employee name from a record
+// employee field can be: populated object { name, email } OR just an ObjectId string
+function getEmployeeName(record, fallbackUser) {
+  if (record.employee && typeof record.employee === 'object' && record.employee.name) {
+    return record.employee.name;
+  }
+  // fallback to the logged-in user's name for own records
+  if (fallbackUser?.name) return fallbackUser.name;
+  return '—';
+}
+
+function getEmployeeDept(record) {
+  if (record.employee && typeof record.employee === 'object') {
+    return record.employee.department || record.employee.email || '—';
+  }
+  return '—';
+}
+
 export default function Attendance() {
   const { user, isManager } = useAuth();
   const [todayRecord, setTodayRecord] = useState(null);
@@ -80,6 +98,7 @@ export default function Attendance() {
 
   return (
     <div className="page-container">
+      {/* Top bar */}
       <div className="page-top-bar">
         <div>
           <h1 className="page-title">Attendance</h1>
@@ -126,7 +145,7 @@ export default function Attendance() {
         </div>
       )}
 
-      {/* My Attendance */}
+      {/* My Attendance History */}
       <div className="card">
         <div className="card-header">
           <h2 className="card-title">My Attendance History</h2>
@@ -136,15 +155,24 @@ export default function Attendance() {
           <table>
             <thead>
               <tr>
-                <th>Date</th><th>Check In</th><th>Check Out</th><th>Work Hours</th><th>Status</th>
+                <th>Employee</th>
+                <th>Date</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Work Hours</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {records.length === 0 ? (
-                <tr><td colSpan="5" className="empty-state">No attendance records yet.</td></tr>
+                <tr><td colSpan="6" className="empty-state">No attendance records yet.</td></tr>
               ) : (
                 records.map((r) => (
                   <tr key={r._id}>
+                    <td>
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>{getEmployeeName(r, user)}</div>
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{getEmployeeDept(r)}</div>
+                    </td>
                     <td>{formatDate(r.date)}</td>
                     <td>{formatTime(r.checkIn)}</td>
                     <td>{formatTime(r.checkOut)}</td>
@@ -173,15 +201,25 @@ export default function Attendance() {
             <table>
               <thead>
                 <tr>
-                  <th>Employee</th><th>Date</th><th>Check In</th><th>Check Out</th><th>Hours</th><th>Status</th>
+                  <th>Employee</th>
+                  <th>Date</th>
+                  <th>Check In</th>
+                  <th>Check Out</th>
+                  <th>Hours</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
                 {allRecords.map((r) => (
                   <tr key={r._id}>
                     <td>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{r.employee?.name}</div>
-                      <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.employee?.department}</div>
+                      {/* Populated object from backend */}
+                      <div style={{ fontWeight: 600, fontSize: 14 }}>
+                        {r.employee?.name || '—'}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#9ca3af' }}>
+                        {r.employee?.department || r.employee?.email || '—'}
+                      </div>
                     </td>
                     <td>{formatDate(r.date)}</td>
                     <td>{formatTime(r.checkIn)}</td>

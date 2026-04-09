@@ -99,7 +99,9 @@ router.get('/my', protect, async (req, res) => {
       query.date = { $gte: startDate, $lte: endDate };
     }
 
-    const records = await Attendance.find(query).sort({ date: -1 });
+    const records = await Attendance.find(query)
+      .populate('employee', 'name email department employeeId')
+      .sort({ date: -1 });
     res.json({ success: true, count: records.length, records });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -117,9 +119,24 @@ router.get('/all', protect, authorize('admin', 'hr', 'manager'), async (req, res
     if (date) query.date = date;
     if (employeeId) query.employee = employeeId;
 
-    const records = await Attendance.find(query)
+    let records = await Attendance.find(query)
       .populate('employee', 'name email department jobTitle employeeId')
       .sort({ date: -1, createdAt: -1 });
+
+    // Fix orphaned records where populate returned null (old/re-seeded data)
+    const User = require('../models/User');
+    const allUsers = await User.find({}).select('name email department jobTitle employeeId');
+    const userMap = {};
+    allUsers.forEach((u) => { userMap[u._id.toString()] = u; });
+
+    records = records.map((r) => {
+      const rec = r.toObject ? r.toObject() : r;
+      if (!rec.employee || typeof rec.employee !== 'object' || !rec.employee.name) {
+        const empId = rec.employee?.toString?.() || '';
+        if (userMap[empId]) rec.employee = userMap[empId];
+      }
+      return rec;
+    });
 
     res.json({ success: true, count: records.length, records });
   } catch (err) {
