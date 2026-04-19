@@ -1,0 +1,101 @@
+/* ── Theme Toggle Button ───────────────────────────── */
+.theme-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.theme-toggle:focus-visible .toggle-track {
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5);
+}
+
+/* Track */
+.toggle-track {
+  position: relative;
+  width: 52px;
+  height: 28px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  transition: background 0.4s ease;
+}
+
+.theme-toggle.light .toggle-track {
+  background: #e2e8f0;
+}
+
+.theme-toggle.dark .toggle-track {
+  background: #4f46e5;
+}
+
+/* Thumb (the sliding circle) */
+.toggle-thumb {
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              background 0.4s ease;
+  left: 3px;
+}
+
+.theme-toggle.dark .toggle-thumb {
+  transform: translateX(24px);
+  background: #fff;
+}
+
+/* Icons */
+.icon {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.3s ease, transform 0.4s ease;
+  pointer-events: none;
+}
+
+.icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Sun — visible in light mode (left side) */
+.icon.sun {
+  left: 7px;
+  color: #f59e0b;
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+.theme-toggle.dark .icon.sun {
+  opacity: 0;
+  transform: scale(0.5) rotate(90deg);
+}
+
+/* Moon — visible in dark mode (right side) */
+.icon.moon {
+  right: 7px;
+  color: #818cf8;
+  opacity: 0;
+  transform: scale(0.5) rotate(-90deg);
+}
+
+.theme-toggle.dark .icon.moon {
+  opacity: 1;
+  transform: scale(1) rotate(0deg);
+}
+
+/* Hover glow */
+.theme-toggle:hover .toggle-track {
+  filter: brightness(1.08);
+}

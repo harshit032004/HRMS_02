@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from './ThemeToggle';
 
 const icons = {
   dashboard: (
@@ -103,6 +104,16 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-footer">
+        <div className="sidebar-footer-top">
+          <div className="sidebar-user">
+            <div className="user-avatar">{user?.name?.[0]?.toUpperCase() || 'U'}</div>
+            <div className="user-info">
+              <span className="user-name">{user?.name || 'User'}</span>
+              <span className="user-role">{user?.role || ''}</span>
+            </div>
+          </div>
+          <ThemeToggle />
+        </div>
         <button className="nav-item" onClick={handleLogout} style={{ color: '#ef4444' }}>
           {icons.logout} Logout
         </button>
