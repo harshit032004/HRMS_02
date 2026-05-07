@@ -1,199 +1,240 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
-import { useToast } from '../components/Toast';
 
-function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-IN', { day:'2-digit',month:'short',year:'numeric' });
-}
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+
+const StatusBadge = ({ status }) => {
+  const cfg = {
+    pending:  'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20',
+    approved: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20',
+    rejected: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20',
+  };
+  return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg[status] || cfg.pending}`}>{status?.charAt(0).toUpperCase()+status?.slice(1)}</span>;
+};
 
 export default function LeaveApprovals() {
-  const toast = useToast();
-  const [leaves,        setLeaves]        = useState([]);
-  const [loading,       setLoading]       = useState(true);
-  const [filter,        setFilter]        = useState('pending');
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('pending');
   const [actionLoading, setActionLoading] = useState('');
-  const [reviewNote,    setReviewNote]    = useState('');
-  const [selectedId,    setSelectedId]    = useState(null);
-  const [showNoteModal, setShowNoteModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState('');
-  // counts from ALL leaves regardless of filter for badge numbers
-  const [allLeaves,     setAllLeaves]     = useState([]);
-
-  const fetchAll = useCallback(async () => {
-    try {
-      const res = await api.get('/leaves/all');
-      setAllLeaves(res.data.leaves || []);
-    } catch (_) {}
-  }, []);
+  const [msg, setMsg] = useState({ text: '', type: '' });
+  const [modal, setModal] = useState({ open: false, id: null, action: '', note: '' });
 
   const fetchLeaves = useCallback(async () => {
     setLoading(true);
     try {
       const url = filter === 'all' ? '/leaves/all' : `/leaves/all?status=${filter}`;
       const res = await api.get(url);
-      setLeaves(res.data.leaves || []);
-    } catch (err) {
-      toast.error('Failed to fetch leave requests');
-    } finally {
-      setLoading(false);
-    }
+      setLeaves(res.data.leaves);
+    } catch { showMsg('Failed to fetch leave requests', 'error'); }
+    finally { setLoading(false); }
   }, [filter]);
 
-  useEffect(() => { fetchLeaves(); fetchAll(); }, [fetchLeaves, fetchAll]);
+  useEffect(() => { fetchLeaves(); }, [fetchLeaves]);
 
-  const openReviewModal = (id, action) => {
-    setSelectedId(id); setPendingAction(action); setReviewNote(''); setShowNoteModal(true);
+  const showMsg = (text, type = 'success') => {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: '', type: '' }), 4000);
   };
 
-  const handleReview = async () => {
-    setShowNoteModal(false);
-    setActionLoading(selectedId + pendingAction);
-    try {
-      await api.patch(`/leaves/${selectedId}/${pendingAction}`, { reviewNote });
-      toast.success(`Leave ${pendingAction}d successfully!`);
-      fetchLeaves(); fetchAll();
-    } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to ${pendingAction} leave`);
-    } finally {
-      setActionLoading(''); setSelectedId(null);
-    }
-  };
+  const openModal = (id, action) => setModal({ open: true, id, action, note: '' });
+  const closeModal = () => setModal({ open: false, id: null, action: '', note: '' });
 
-  const quickAction = async (id, action) => {
+  const doAction = async (id, action, note = '') => {
     setActionLoading(id + action);
     try {
-      await api.patch(`/leaves/${id}/${action}`, { reviewNote:'' });
-      toast.success(`Leave ${action}d successfully!`);
-      fetchLeaves(); fetchAll();
-    } catch (err) {
-      toast.error(err.response?.data?.message || `Failed to ${action} leave`);
-    } finally {
-      setActionLoading('');
-    }
+      await api.patch(`/leaves/${id}/${action}`, { reviewNote: note });
+      showMsg(`Leave ${action}d successfully!`);
+      fetchLeaves();
+    } catch (err) { showMsg(err.response?.data?.message || `Failed to ${action}`, 'error'); }
+    finally { setActionLoading(''); }
   };
 
-  // Counts from allLeaves for badges
-  const counts = {
-    pending:  allLeaves.filter(l=>l.status==='pending').length,
-    approved: allLeaves.filter(l=>l.status==='approved').length,
-    rejected: allLeaves.filter(l=>l.status==='rejected').length,
-    all:      allLeaves.length,
+  const handleModalConfirm = async () => {
+    closeModal();
+    await doAction(modal.id, modal.action, modal.note);
   };
 
   const tabs = [
-    { key:'pending',  label:'Pending',  color:'#f59e0b', activeColor:'#f59e0b' },
-    { key:'approved', label:'Approved', color:'#10b981', activeColor:'#10b981' },
-    { key:'rejected', label:'Rejected', color:'#ef4444', activeColor:'#ef4444' },
-    { key:'all',      label:'All',      color:'#6366f1', activeColor:'#6366f1' },
+    { key: 'pending',  label: 'Pending',  dot: 'bg-amber-500' },
+    { key: 'approved', label: 'Approved', dot: 'bg-emerald-500' },
+    { key: 'rejected', label: 'Rejected', dot: 'bg-red-500' },
+    { key: 'all',      label: 'All',      dot: 'bg-gray-400' },
   ];
 
-  const rowStripe = { pending:'#f59e0b', approved:'#10b981', rejected:'#ef4444' };
-
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1 className="page-title">Leave Approvals</h1>
-        <p style={{ color:'#6b7280',marginTop:4 }}>Review and manage employee leave requests</p>
+    <div className="p-8 space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Leave Approvals</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Review and manage employee leave requests</p>
       </div>
 
-      {/* Filter Tabs with count badges */}
-      <div style={{ display:'flex',gap:8,marginBottom:20,flexWrap:'wrap' }}>
-        {tabs.map(({ key, label, color }) => (
-          <button key={key} onClick={()=>setFilter(key)}
-            style={{ padding:'8px 18px',borderRadius:8,border:'1px solid',borderColor:filter===key?color:'#e5e7eb',background:filter===key?color:'white',color:filter===key?'white':'#374151',fontWeight:500,fontSize:13,cursor:'pointer',display:'flex',alignItems:'center',gap:7,transition:'all 0.2s' }}>
-            {label}
-            {counts[key] > 0 && (
-              <span style={{ display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:20,height:20,borderRadius:99,background:filter===key?'rgba(255,255,255,0.25)':color,color:filter===key?'white':'white',fontSize:11,fontWeight:700,padding:'0 5px' }}>
-                {counts[key]}
+      {/* Alert */}
+      {msg.text && (
+        <div className={`flex items-center gap-2.5 p-4 rounded-xl text-sm font-medium ${msg.type === 'error' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400' : 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400'}`}>
+          {msg.text}
+        </div>
+      )}
+
+      {/* Tabs */}
+      <div className="flex items-center gap-2">
+        {tabs.map(t => (
+          <button key={t.key} onClick={() => setFilter(t.key)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+              filter === t.key
+                ? 'bg-indigo-600 border-indigo-600 text-white shadow-md shadow-indigo-600/20'
+                : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-300 hover:border-gray-300 dark:hover:border-white/20'
+            }`}>
+            <span className={`w-1.5 h-1.5 rounded-full ${filter === t.key ? 'bg-white/70' : t.dot}`}/>
+            {t.label}
+            {t.key !== 'all' && (
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${filter === t.key ? 'bg-white/20' : 'bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400'}`}>
+                {leaves.filter(l => t.key === 'all' ? true : l.status === t.key).length}
               </span>
             )}
           </button>
         ))}
       </div>
 
-      <div className="card">
-        <div className="card-header">
-          <h2 className="card-title">{filter==='all'?'All':filter.charAt(0).toUpperCase()+filter.slice(1)} Leave Requests</h2>
-          <p className="card-subtitle">{leaves.length} requests</p>
+      {/* Table */}
+      <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5 flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white capitalize">{filter === 'all' ? 'All' : filter} Leave Requests</h3>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{leaves.length} records</p>
+          </div>
         </div>
 
-        {loading ? <div className="loading">Loading...</div> : (
-          <div className="table-container">
-            <table>
+        <div className="overflow-x-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="flex gap-2">{[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{animationDelay:`${i*0.1}s`}}/>)}</div>
+            </div>
+          ) : (
+            <table className="w-full">
               <thead>
-                <tr>
-                  <th>Employee</th><th>Leave Type</th><th>Duration</th><th>Days</th>
-                  <th>Reason</th><th>Applied On</th><th>Status</th><th>Actions</th>
+                <tr className="border-b border-gray-50 dark:border-white/[0.04]">
+                  {['Employee', 'Type', 'Duration', 'Days', 'Reason', 'Applied', 'Status', 'Actions'].map(h => (
+                    <th key={h} className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 whitespace-nowrap">{h}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {leaves.length === 0 ? (
-                  <tr>
-                    <td colSpan="8">
-                      <div style={{ textAlign:'center',padding:'48px 20px' }}>
-                        <div style={{ fontSize:36,marginBottom:12 }}>📋</div>
-                        <p style={{ fontWeight:600,color:'#374151',marginBottom:4 }}>No requests found</p>
-                        <p style={{ fontSize:13,color:'#9ca3af' }}>No {filter==='all'?'':filter} leave requests at this time.</p>
+                  <tr><td colSpan="8" className="px-6 py-16 text-center">
+                    <div className="text-2xl mb-2">🎉</div>
+                    <p className="text-sm text-gray-400 dark:text-gray-500">No leave requests found.</p>
+                  </td></tr>
+                ) : leaves.map(leave => (
+                  <tr key={leave._id} className="border-b border-gray-50 dark:border-white/[0.03] last:border-0 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                    {/* Employee */}
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-indigo-600 dark:text-indigo-400 text-xs font-bold">
+                            {(leave.employee?.name || leave.employee?.email)?.[0]?.toUpperCase() || '?'}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
+                            {leave.employee?.name || leave.employee?.email?.split('@')[0] || 'Unknown'}
+                          </p>
+                          <p className="text-[11px] text-gray-400 dark:text-gray-500">{leave.employee?.department || leave.employee?.email || '—'}</p>
+                        </div>
                       </div>
                     </td>
+                    <td className="px-5 py-3.5 text-sm text-gray-600 dark:text-gray-300 capitalize whitespace-nowrap">{leave.leaveType || 'casual'}</td>
+                    <td className="px-5 py-3.5">
+                      <p className="text-xs font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">{leave.startDate}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">→ {leave.endDate}</p>
+                    </td>
+                    <td className="px-5 py-3.5 text-sm font-bold text-gray-900 dark:text-white">{leave.totalDays}d</td>
+                    <td className="px-5 py-3.5 max-w-[140px]">
+                      <p className="text-xs text-gray-600 dark:text-gray-300 truncate" title={leave.reason}>{leave.reason}</p>
+                    </td>
+                    <td className="px-5 py-3.5 text-xs text-gray-500 dark:text-gray-400 whitespace-nowrap">{fmtDate(leave.createdAt)}</td>
+                    <td className="px-5 py-3.5">
+                      <StatusBadge status={leave.status} />
+                      {leave.reviewedBy && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 whitespace-nowrap">by {leave.reviewedBy.name}</p>}
+                      {leave.reviewNote && <p className="text-[10px] text-gray-400 dark:text-gray-500 italic truncate max-w-[100px]">"{leave.reviewNote}"</p>}
+                    </td>
+                    <td className="px-5 py-3.5">
+                      {leave.status === 'pending' && (
+                        <div className="flex items-center gap-1.5">
+                          {/* Quick Approve */}
+                          <button onClick={() => doAction(leave._id, 'approve')}
+                            disabled={!!actionLoading}
+                            title="Approve"
+                            className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-center transition-colors disabled:opacity-50">
+                            {actionLoading === leave._id+'approve'
+                              ? <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                              : <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>}
+                          </button>
+                          {/* Quick Reject */}
+                          <button onClick={() => doAction(leave._id, 'reject')}
+                            disabled={!!actionLoading}
+                            title="Reject"
+                            className="w-7 h-7 rounded-lg bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-500/20 border border-red-200 dark:border-red-500/20 flex items-center justify-center transition-colors disabled:opacity-50">
+                            {actionLoading === leave._id+'reject'
+                              ? <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                              : <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                          </button>
+                          {/* With Note */}
+                          <button onClick={() => openModal(leave._id, 'approve')}
+                            title="Approve with note"
+                            className="px-2 py-1 rounded-lg bg-gray-50 dark:bg-white/5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 border border-gray-200 dark:border-white/10 text-[10px] font-medium transition-colors">
+                            Note
+                          </button>
+                        </div>
+                      )}
+                    </td>
                   </tr>
-                ) : (
-                  leaves.map((leave) => (
-                    <tr key={leave._id} style={{ position:'relative' }}>
-                      <td>
-                        {/* Left color stripe by status */}
-                        <div style={{ position:'absolute',left:0,top:0,bottom:0,width:3,background:rowStripe[leave.status]||'#e5e7eb',borderRadius:'2px 0 0 2px' }}/>
-                        <div style={{ fontWeight:600,fontSize:14 }}>{leave.employee?.name||leave.employee?.email?.split('@')[0]||'Unknown'}</div>
-                        <div style={{ fontSize:11,color:'#9ca3af' }}>{leave.employee?.email||'—'}</div>
-                        <div style={{ fontSize:11,color:'#6b7280' }}>{leave.employee?.department||''}{leave.employee?.employeeId?` · ${leave.employee.employeeId}`:''}</div>
-                      </td>
-                      <td style={{ textTransform:'capitalize',fontSize:13 }}>{leave.leaveType||'casual'}</td>
-                      <td style={{ fontSize:12 }}>{leave.startDate}<br/><span style={{ color:'#9ca3af' }}>to</span> {leave.endDate}</td>
-                      <td style={{ fontWeight:600,textAlign:'center' }}>{leave.totalDays}</td>
-                      <td style={{ fontSize:13,maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{leave.reason}</td>
-                      <td style={{ fontSize:13 }}>{formatDate(leave.createdAt)}</td>
-                      <td>
-                        <span className={`badge badge-${leave.status}`}>{leave.status.charAt(0).toUpperCase()+leave.status.slice(1)}</span>
-                        {leave.reviewedBy && <div style={{ fontSize:11,color:'#9ca3af',marginTop:2 }}>by {leave.reviewedBy.name}</div>}
-                        {leave.reviewNote && <div style={{ fontSize:11,color:'#6b7280',fontStyle:'italic',marginTop:2 }}>"{leave.reviewNote}"</div>}
-                      </td>
-                      <td>
-                        {leave.status === 'pending' && (
-                          <div className="action-btns">
-                            <button className="btn btn-success btn-sm" onClick={()=>quickAction(leave._id,'approve')} disabled={actionLoading===leave._id+'approve'}>
-                              {actionLoading===leave._id+'approve'?'...':'✓'}
-                            </button>
-                            <button className="btn btn-danger btn-sm" onClick={()=>quickAction(leave._id,'reject')} disabled={actionLoading===leave._id+'reject'}>
-                              {actionLoading===leave._id+'reject'?'...':'✗'}
-                            </button>
-                            <button className="btn btn-outline btn-sm" onClick={()=>openReviewModal(leave._id,'approve')} style={{ fontSize:11 }}>+ Note</button>
-                          </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
+                ))}
               </tbody>
             </table>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Review Note Modal */}
-      {showNoteModal && (
-        <div className="modal-overlay" onClick={()=>setShowNoteModal(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
-            <h3 className="modal-title">{pendingAction==='approve'?'✓ Approve':'✗ Reject'} Leave</h3>
-            <div className="form-group">
-              <label className="form-label">Review Note (optional)</label>
-              <textarea className="form-input" placeholder="Add a note for the employee..." value={reviewNote} onChange={e=>setReviewNote(e.target.value)} rows={3}/>
+      {/* Modal */}
+      {modal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={closeModal}>
+          <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-100 dark:border-white/10 w-full max-w-md shadow-2xl animate-slide-up" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-5 border-b border-gray-100 dark:border-white/5">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${modal.action === 'approve' ? 'bg-emerald-100 dark:bg-emerald-500/20' : 'bg-red-100 dark:bg-red-500/20'}`}>
+                  {modal.action === 'approve'
+                    ? <svg className="w-5 h-5 text-emerald-600 dark:text-emerald-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+                    : <svg className="w-5 h-5 text-red-600 dark:text-red-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>}
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-gray-900 dark:text-white capitalize">{modal.action} Leave Request</h3>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Add an optional note for the employee</p>
+                </div>
+              </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={()=>setShowNoteModal(false)}>Cancel</button>
-              <button className={`btn ${pendingAction==='approve'?'btn-success':'btn-danger'}`} onClick={handleReview}>
-                Confirm {pendingAction==='approve'?'Approval':'Rejection'}
-              </button>
+            <div className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">Review Note <span className="normal-case font-normal">(optional)</span></label>
+                <textarea
+                  value={modal.note}
+                  onChange={e => setModal(m => ({...m, note: e.target.value}))}
+                  placeholder="Add a message for the employee…"
+                  rows={3}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-none transition-all"
+                />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button onClick={closeModal}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 text-sm font-medium text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                  Cancel
+                </button>
+                <button onClick={handleModalConfirm}
+                  className={`flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all ${modal.action === 'approve' ? 'bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-600/20' : 'bg-red-600 hover:bg-red-700 shadow-lg shadow-red-600/20'}`}>
+                  Confirm {modal.action === 'approve' ? 'Approval' : 'Rejection'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

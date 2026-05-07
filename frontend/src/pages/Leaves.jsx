@@ -1,21 +1,38 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
-import { useToast } from '../components/Toast';
 
-function formatDate(d) {
-  if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' });
-}
-
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 const LEAVE_TYPES = ['casual', 'sick', 'earned', 'maternity', 'paternity', 'other'];
 
+const StatusBadge = ({ status }) => {
+  const cfg = {
+    pending:  'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20',
+    approved: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20',
+    rejected: 'bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-400 border border-red-200 dark:border-red-500/20',
+  };
+  return (
+    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg[status] || cfg.pending}`}>
+      {status?.charAt(0).toUpperCase() + status?.slice(1)}
+    </span>
+  );
+};
+
+const InputField = ({ label, children }) => (
+  <div>
+    <label className="block text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-1.5">{label}</label>
+    {children}
+  </div>
+);
+
+const inputCls = "w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all";
+
 export default function Leaves() {
-  const toast = useToast();
-  const [leaves,       setLeaves]       = useState([]);
-  const [loading,      setLoading]      = useState(true);
+  const [leaves, setLeaves] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all');
-  const [form, setForm] = useState({ startDate:'', endDate:'', reason:'', leaveType:'casual' });
+  const [form, setForm] = useState({ startDate: '', endDate: '', reason: '', leaveType: 'casual' });
   const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState({ text: '', type: '' });
 
   useEffect(() => { fetchLeaves(); }, []);
 
@@ -24,215 +41,183 @@ export default function Leaves() {
     try {
       const res = await api.get('/leaves/my');
       setLeaves(res.data.leaves);
-    } catch (err) {
-      toast.error('Failed to fetch leave history');
-    } finally {
-      setLoading(false);
-    }
+    } catch { showMsg('Failed to fetch leave history', 'error'); }
+    finally { setLoading(false); }
+  };
+
+  const showMsg = (text, type = 'success') => {
+    setMsg({ text, type });
+    setTimeout(() => setMsg({ text: '', type: '' }), 4000);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (new Date(form.endDate) < new Date(form.startDate)) {
-      toast.error('End date cannot be before start date');
-      return;
-    }
+    if (new Date(form.endDate) < new Date(form.startDate)) { showMsg('End date cannot be before start date', 'error'); return; }
     setSubmitting(true);
     try {
       await api.post('/leaves/apply', form);
-      toast.success('Leave request submitted successfully! ✅');
-      setForm({ startDate:'', endDate:'', reason:'', leaveType:'casual' });
+      showMsg('Leave request submitted successfully!');
+      setForm({ startDate: '', endDate: '', reason: '', leaveType: 'casual' });
       fetchLeaves();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit leave request');
-    } finally {
-      setSubmitting(false);
-    }
+    } catch (err) { showMsg(err.response?.data?.message || 'Failed to submit leave request', 'error'); }
+    finally { setSubmitting(false); }
   };
 
   const handleCancel = async (id) => {
     if (!confirm('Cancel this leave request?')) return;
     try {
       await api.delete(`/leaves/${id}`);
-      toast.success('Leave request cancelled');
+      showMsg('Leave request cancelled');
       fetchLeaves();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to cancel leave');
-    }
+    } catch (err) { showMsg(err.response?.data?.message || 'Failed to cancel', 'error'); }
   };
 
-  // Duration calculation
-  const durationDays = form.startDate && form.endDate
-    ? Math.max(0, Math.ceil((new Date(form.endDate) - new Date(form.startDate)) / (1000*60*60*24)) + 1)
+  const dayCount = form.startDate && form.endDate
+    ? Math.max(1, Math.ceil((new Date(form.endDate) - new Date(form.startDate)) / 86400000) + 1)
     : 0;
 
   const filtered = filterStatus === 'all' ? leaves : leaves.filter(l => l.status === filterStatus);
-
-  // Count badges
-  const counts = {
-    all:      leaves.length,
-    pending:  leaves.filter(l=>l.status==='pending').length,
-    approved: leaves.filter(l=>l.status==='approved').length,
-    rejected: leaves.filter(l=>l.status==='rejected').length,
-  };
+  const tabs = ['all', 'pending', 'approved', 'rejected'];
 
   return (
-    <div className="page-container">
-      <div className="page-header">
-        <h1 className="page-title">Leave Management</h1>
+    <div className="p-8 space-y-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Leave Management</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Apply for time off and track your requests</p>
       </div>
 
-      <div className="split-layout">
-        {/* ── Apply Form ── */}
-        <div className="card">
-          <div className="card-header">
-            <h2 className="card-title">Apply for Leave</h2>
-            <p className="card-subtitle">Submit a new time-off request</p>
-          </div>
+      {/* Alert */}
+      {msg.text && (
+        <div className={`flex items-center gap-2.5 p-4 rounded-xl text-sm font-medium ${msg.type === 'error' ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-700 dark:text-red-400' : 'bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-700 dark:text-emerald-400'}`}>
+          {msg.type === 'error'
+            ? <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor"><path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm-1 5a1 1 0 112 0v4a1 1 0 11-2 0V7zm1 9a1.25 1.25 0 110-2.5A1.25 1.25 0 0112 16z" clipRule="evenodd"/></svg>
+            : <svg className="w-4 h-4 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="20 6 9 17 4 12"/></svg>
+          }
+          {msg.text}
+        </div>
+      )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group">
-              <label className="form-label">Leave Type</label>
-              <select className="form-input" value={form.leaveType}
-                onChange={e=>setForm({...form, leaveType:e.target.value})}>
-                {LEAVE_TYPES.map(t => (
-                  <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)} Leave</option>
-                ))}
-              </select>
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        {/* Apply Form */}
+        <div className="lg:col-span-2">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5">
+              <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Apply for Leave</h3>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Submit a new time-off request</p>
             </div>
+            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              <InputField label="Leave Type">
+                <select value={form.leaveType} onChange={e => setForm({...form, leaveType: e.target.value})} className={inputCls}>
+                  {LEAVE_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)} Leave</option>)}
+                </select>
+              </InputField>
 
-            <div className="form-group">
-              <label className="form-label">Start Date</label>
-              <input className="form-input" type="date" value={form.startDate}
-                min={new Date().toISOString().split('T')[0]}
-                onChange={e=>setForm({...form, startDate:e.target.value})} required/>
-            </div>
-
-            <div className="form-group">
-              <label className="form-label">End Date</label>
-              <input className="form-input" type="date" value={form.endDate}
-                min={form.startDate || new Date().toISOString().split('T')[0]}
-                onChange={e=>setForm({...form, endDate:e.target.value})} required/>
-            </div>
-
-            {/* Duration preview */}
-            {durationDays > 0 && (
-              <div style={{ marginBottom:16,padding:'10px 14px',background:'#f0f9ff',borderRadius:8,fontSize:13,color:'#0369a1',display:'flex',alignItems:'center',gap:8,border:'1px solid #bae6fd' }}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                <strong>Duration: {durationDays} day{durationDays!==1?'s':''}</strong>
-                <span style={{ color:'#64748b' }}>({formatDate(form.startDate)} – {formatDate(form.endDate)})</span>
+              <div className="grid grid-cols-2 gap-3">
+                <InputField label="Start Date">
+                  <input type="date" value={form.startDate} min={new Date().toISOString().split('T')[0]}
+                    onChange={e => setForm({...form, startDate: e.target.value})} required className={inputCls} />
+                </InputField>
+                <InputField label="End Date">
+                  <input type="date" value={form.endDate} min={form.startDate || new Date().toISOString().split('T')[0]}
+                    onChange={e => setForm({...form, endDate: e.target.value})} required className={inputCls} />
+                </InputField>
               </div>
-            )}
 
-            <div className="form-group">
-              <label className="form-label" style={{ display:'flex',justifyContent:'space-between' }}>
-                <span>Reason</span>
-                <span style={{ fontSize:11,color:form.reason.length>180?'#ef4444':'#9ca3af',fontWeight:400 }}>
-                  {form.reason.length}/200
-                </span>
-              </label>
-              <textarea className="form-input"
-                placeholder="Briefly explain the reason for leave..."
-                value={form.reason}
-                onChange={e=>{ if(e.target.value.length<=200) setForm({...form,reason:e.target.value}); }}
-                rows={3} required/>
-            </div>
+              {dayCount > 0 && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20">
+                  <svg className="w-4 h-4 text-indigo-500 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-400">{dayCount} day{dayCount !== 1 ? 's' : ''} requested</span>
+                </div>
+              )}
 
-            <button className="btn btn-primary" type="submit" disabled={submitting}>
-              {submitting ? 'Submitting…' : 'Submit Leave Request'}
-            </button>
-          </form>
+              <InputField label="Reason">
+                <textarea value={form.reason} onChange={e => setForm({...form, reason: e.target.value})}
+                  placeholder="Briefly explain the reason for your leave…" rows={3} required
+                  className={`${inputCls} resize-none`} />
+              </InputField>
+
+              <button type="submit" disabled={submitting}
+                className="w-full py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold transition-all disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20">
+                {submitting
+                  ? <><svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>Submitting…</>
+                  : 'Submit Request'}
+              </button>
+            </form>
+          </div>
         </div>
 
-        {/* ── Leave History ── */}
-        <div className="card">
-          <div className="card-header" style={{ display:'flex',justifyContent:'space-between',alignItems:'flex-start' }}>
-            <div>
-              <h2 className="card-title">My Leave History</h2>
-              <p className="card-subtitle">{leaves.length} total requests</p>
+        {/* Leave History */}
+        <div className="lg:col-span-3">
+          <div className="bg-white dark:bg-[#111827] rounded-2xl border border-gray-100 dark:border-white/5 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100 dark:border-white/5 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900 dark:text-white">My Leave History</h3>
+                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{leaves.length} total requests</p>
+              </div>
+              <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/5 rounded-lg p-1">
+                {tabs.map(t => (
+                  <button key={t} onClick={() => setFilterStatus(t)}
+                    className={`px-3 py-1 rounded-md text-xs font-medium capitalize transition-all ${filterStatus === t ? 'bg-white dark:bg-white/10 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}>
+                    {t}
+                  </button>
+                ))}
+              </div>
             </div>
-            {/* Filter tabs with count badges */}
-            <div style={{ display:'flex',gap:6,flexWrap:'wrap' }}>
-              {[
-                { key:'all',      color:'#6366f1' },
-                { key:'pending',  color:'#f59e0b' },
-                { key:'approved', color:'#10b981' },
-                { key:'rejected', color:'#ef4444' },
-              ].map(({ key, color }) => (
-                <button key={key} onClick={()=>setFilterStatus(key)}
-                  style={{
-                    padding:'5px 10px',borderRadius:6,border:'1px solid',
-                    borderColor: filterStatus===key ? color : '#e5e7eb',
-                    background:  filterStatus===key ? color : 'white',
-                    color:       filterStatus===key ? 'white' : '#374151',
-                    fontSize:12,fontWeight:500,cursor:'pointer',
-                    display:'flex',alignItems:'center',gap:5,
-                    textTransform:'capitalize',
-                  }}>
-                  {key}
-                  {counts[key] > 0 && (
-                    <span style={{ display:'inline-flex',alignItems:'center',justifyContent:'center',minWidth:18,height:18,borderRadius:99,background:filterStatus===key?'rgba(255,255,255,0.25)':color,color:'white',fontSize:10,fontWeight:700,padding:'0 4px' }}>
-                      {counts[key]}
-                    </span>
-                  )}
-                </button>
-              ))}
+
+            <div className="overflow-x-auto">
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <div className="flex gap-2">{[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{animationDelay:`${i*0.1}s`}}/>)}</div>
+                </div>
+              ) : (
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-50 dark:border-white/[0.04]">
+                      {['Type', 'Duration', 'Days', 'Reason', 'Status', 'Reviewed By', ''].map(h => (
+                        <th key={h} className="text-left px-5 py-3 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr><td colSpan="7" className="px-6 py-16 text-center">
+                        <div className="text-2xl mb-2">📋</div>
+                        <p className="text-sm text-gray-400 dark:text-gray-500">No leave requests found.</p>
+                      </td></tr>
+                    ) : filtered.map(leave => (
+                      <tr key={leave._id} className="border-b border-gray-50 dark:border-white/[0.03] last:border-0 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                        <td className="px-5 py-3.5 text-sm font-medium text-gray-700 dark:text-gray-200 capitalize">{leave.leaveType || 'casual'}</td>
+                        <td className="px-5 py-3.5">
+                          <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{leave.startDate}</p>
+                          <p className="text-xs text-gray-400 dark:text-gray-500">→ {leave.endDate}</p>
+                        </td>
+                        <td className="px-5 py-3.5 text-sm font-bold text-gray-900 dark:text-white">{leave.totalDays}d</td>
+                        <td className="px-5 py-3.5 max-w-[120px]">
+                          <p className="text-xs text-gray-600 dark:text-gray-300 truncate" title={leave.reason}>{leave.reason}</p>
+                        </td>
+                        <td className="px-5 py-3.5">
+                          <StatusBadge status={leave.status} />
+                          {leave.reviewNote && <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 italic truncate max-w-[100px]">{leave.reviewNote}</p>}
+                        </td>
+                        <td className="px-5 py-3.5 text-xs text-gray-500 dark:text-gray-400">{leave.reviewedBy?.name || '—'}</td>
+                        <td className="px-5 py-3.5">
+                          {leave.status === 'pending' && (
+                            <button onClick={() => handleCancel(leave._id)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
+                              Cancel
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
-
-          {loading ? (
-            <div className="loading" style={{ padding:40 }}>Loading...</div>
-          ) : filtered.length === 0 ? (
-            <div style={{ textAlign:'center',padding:'48px 20px' }}>
-              <div style={{ fontSize:40,marginBottom:12 }}>📋</div>
-              <p style={{ fontWeight:600,color:'#374151',marginBottom:4 }}>No leave requests</p>
-              <p style={{ fontSize:13,color:'#9ca3af' }}>
-                {filterStatus==='all' ? 'Apply for your first leave using the form.' : `No ${filterStatus} requests found.`}
-              </p>
-            </div>
-          ) : (
-            <div className="table-container">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Type</th><th>Duration</th><th>Days</th>
-                    <th>Reason</th><th>Status</th><th>Reviewed By</th><th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((leave) => (
-                    <tr key={leave._id}>
-                      <td style={{ textTransform:'capitalize',fontSize:13 }}>{leave.leaveType||'casual'}</td>
-                      <td style={{ fontSize:12 }}>
-                        {leave.startDate}<br/>
-                        <span style={{ color:'#9ca3af' }}>to</span> {leave.endDate}
-                      </td>
-                      <td style={{ fontWeight:600 }}>{leave.totalDays}d</td>
-                      <td style={{ fontSize:13,maxWidth:120,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap' }}>{leave.reason}</td>
-                      <td>
-                        <span className={`badge badge-${leave.status}`}>
-                          {leave.status.charAt(0).toUpperCase()+leave.status.slice(1)}
-                        </span>
-                        {leave.reviewNote && (
-                          <div style={{ fontSize:11,color:'#9ca3af',marginTop:2 }}>{leave.reviewNote}</div>
-                        )}
-                      </td>
-                      <td style={{ fontSize:12,color:'#6b7280' }}>{leave.reviewedBy?.name||'—'}</td>
-                      <td>
-                        {leave.status==='pending' && (
-                          <button className="btn btn-outline btn-sm"
-                            onClick={()=>handleCancel(leave._id)}
-                            style={{ color:'#dc2626',borderColor:'#fca5a5',fontSize:11 }}>
-                            Cancel
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
     </div>

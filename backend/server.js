@@ -20,6 +20,8 @@ app.use('/api/employees', require('./routes/employees'));
 app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/leaves', require('./routes/leaves'));
 app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/jobs', require('./routes/jobs'));
+app.use('/api/candidates', require('./routes/candidates'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
