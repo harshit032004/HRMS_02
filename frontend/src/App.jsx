@@ -11,6 +11,9 @@ import LeaveApprovals from './pages/LeaveApprovals';
 import Settings from './pages/Settings';
 import Jobs from './pages/Jobs';
 import Candidates from './pages/Candidates';
+import Goals from './pages/Goals';
+import Feedback from './pages/Feedback';
+import Reviews from './pages/Reviews';
 
 function ProtectedLayout({ children }) {
   const { user, loading } = useAuth();
@@ -63,6 +66,10 @@ function AppRoutes() {
       <Route path="/settings" element={<ProtectedLayout><Settings /></ProtectedLayout>} />
       <Route path="/jobs" element={<ProtectedLayout><Jobs /></ProtectedLayout>} />
       <Route path="/candidates" element={<ProtectedLayout><HRRoute><Candidates /></HRRoute></ProtectedLayout>} />
+      {/* Performance Management */}
+      <Route path="/goals" element={<ProtectedLayout><Goals /></ProtectedLayout>} />
+      <Route path="/feedback" element={<ProtectedLayout><Feedback /></ProtectedLayout>} />
+      <Route path="/reviews" element={<ProtectedLayout><Reviews /></ProtectedLayout>} />
       <Route path="*" element={<Navigate to={user ? "/dashboard" : "/login"} replace />} />
     </Routes>
   );

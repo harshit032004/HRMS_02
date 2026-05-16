@@ -22,6 +22,10 @@ app.use('/api/leaves', require('./routes/leaves'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/jobs', require('./routes/jobs'));
 app.use('/api/candidates', require('./routes/candidates'));
+// Performance Management
+app.use('/api/goals', require('./routes/goals'));
+app.use('/api/feedback', require('./routes/feedback'));
+app.use('/api/reviews', require('./routes/reviews'));
 
 // Error handling middleware
 app.use((err, req, res, next) => {
