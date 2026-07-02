@@ -45,6 +45,14 @@ const userSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
     },
+    avatarUrl: {
+      type: String,
+      default: null,
+    },
+    salary: {
+      type: Number,
+      default: 30000,
+    },
   },
   { timestamps: true }
 );

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import Breadcrumb from '../components/Breadcrumb';
 
 const starColor = (n, rating) => n <= rating ? 'text-amber-400' : 'text-gray-700';
 
@@ -40,10 +41,10 @@ function FeedbackModal({ employees, goals, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0d1117] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
-          <h2 className="text-white font-semibold text-lg">Add Feedback</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+      <div className="bg-white dark:bg-[#0d1117] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-white/5">
+          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">Add Feedback</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
@@ -51,17 +52,17 @@ function FeedbackModal({ employees, goals, onClose, onSaved }) {
           {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg px-4 py-2">{error}</div>}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Employee *</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Employee *</label>
               <select value={form.employee} onChange={e => setForm({...form, employee: e.target.value})}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60">
+                className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/60">
                 <option value="">Select employee</option>
                 {employees.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Linked Goal (optional)</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Linked Goal (optional)</label>
               <select value={form.goal} onChange={e => setForm({...form, goal: e.target.value})}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60">
+                className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/60">
                 <option value="">General review</option>
                 {goals.filter(g => !form.employee || g.assignedTo?._id === form.employee).map(g =>
                   <option key={g._id} value={g._id}>{g.title}</option>
@@ -70,17 +71,17 @@ function FeedbackModal({ employees, goals, onClose, onSaved }) {
             </div>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Feedback *</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Feedback *</label>
             <textarea value={form.feedbackText} onChange={e => setForm({...form, feedbackText: e.target.value})}
               rows={3} placeholder="Write your feedback here..."
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500/60 resize-none" />
+              className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500/60 resize-none" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-2">Rating *</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-2">Rating *</label>
             <div className="flex gap-2">
               {[1,2,3,4,5].map(n => (
                 <button key={n} onClick={() => setForm({...form, rating: n})}
-                  className={`w-9 h-9 rounded-lg text-sm font-bold border transition-all ${form.rating >= n ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-white/5 border-white/10 text-gray-500 hover:border-white/20'}`}>
+                  className={`w-9 h-9 rounded-lg text-sm font-bold border transition-all ${form.rating >= n ? 'bg-amber-500/20 border-amber-500/40 text-amber-400' : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10 text-gray-500 hover:border-white/20'}`}>
                   {n}
                 </button>
               ))}
@@ -89,7 +90,7 @@ function FeedbackModal({ employees, goals, onClose, onSaved }) {
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 pb-6">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">Cancel</button>
           <button onClick={submit} disabled={saving}
             className="px-5 py-2 rounded-lg text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors disabled:opacity-50">
             {saving ? 'Submitting…' : 'Submit Feedback'}
@@ -134,8 +135,9 @@ export default function Feedback() {
     <div className="p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Feedback</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Performance feedback and ratings</p>
+          <Breadcrumb crumbs={[{ label: 'Feedback' }]} />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Feedback</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">Performance feedback and ratings</p>
         </div>
         {isManager() && (
           <button onClick={() => setShowModal(true)}
@@ -148,15 +150,15 @@ export default function Feedback() {
 
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-[#0d1117] border border-white/5 rounded-2xl p-4">
+        <div className="bg-white dark:bg-[#0d1117] border border-gray-100 dark:border-white/5 rounded-2xl p-4">
           <div className="text-2xl font-bold text-indigo-400">{feedbacks.length}</div>
           <div className="text-gray-500 text-xs mt-1">Total Feedback</div>
         </div>
-        <div className="bg-[#0d1117] border border-white/5 rounded-2xl p-4">
+        <div className="bg-white dark:bg-[#0d1117] border border-gray-100 dark:border-white/5 rounded-2xl p-4">
           <div className="text-2xl font-bold text-amber-400">{avgRating}</div>
           <div className="text-gray-500 text-xs mt-1">Avg Rating</div>
         </div>
-        <div className="bg-[#0d1117] border border-white/5 rounded-2xl p-4">
+        <div className="bg-white dark:bg-[#0d1117] border border-gray-100 dark:border-white/5 rounded-2xl p-4">
           <div className="text-2xl font-bold text-emerald-400">{feedbacks.filter(f => f.rating >= 4).length}</div>
           <div className="text-gray-500 text-xs mt-1">High Ratings (4-5)</div>
         </div>
@@ -171,15 +173,15 @@ export default function Feedback() {
       ) : (
         <div className="space-y-3">
           {feedbacks.map(fb => (
-            <div key={fb._id} className="bg-[#0d1117] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all">
+            <div key={fb._id} className="bg-white dark:bg-[#0d1117] border border-gray-100 dark:border-white/5 rounded-2xl p-5 hover:border-gray-200 dark:border-white/10 transition-all">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-xs font-bold">{fb.employee?.name?.[0]?.toUpperCase()}</span>
+                      <span className="text-gray-900 dark:text-white text-xs font-bold">{fb.employee?.name?.[0]?.toUpperCase()}</span>
                     </div>
                     <div>
-                      <div className="text-white text-sm font-semibold">{fb.employee?.name}</div>
+                      <div className="text-gray-900 dark:text-white text-sm font-semibold">{fb.employee?.name}</div>
                       <div className="text-gray-500 text-xs">{fb.employee?.department}</div>
                     </div>
                   </div>

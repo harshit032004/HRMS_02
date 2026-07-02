@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import JobForm from '../components/recruitment/JobForm';
 import Modal from '../components/recruitment/Modal';
+import Breadcrumb from '../components/Breadcrumb';
 
 const StatusBadge = ({ status }) => (
   <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold
@@ -113,6 +114,7 @@ export default function Jobs() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
+          <Breadcrumb crumbs={[{ label: 'Job Postings' }]} />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Job Postings</h1>
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">
             {jobs.filter(j => j.status === 'open').length} open positions

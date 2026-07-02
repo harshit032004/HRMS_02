@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 const { protect, authorize } = require('../middleware/auth');
+const { logAction } = require('../utils/auditLogger');
 
 // @route   POST /api/auth/register
 // @desc    Register a new user (admin only in production; open for setup)
@@ -51,11 +52,16 @@ router.post('/login', async (req, res) => {
 
     const user = await User.findOne({ email }).select('+password');
     if (!user) {
+      // Attach a fake actor null so logAction works without req.user
+      logAction({ ip: req.ip, headers: req.headers, user: null },
+        'LOGIN_FAILED', 'User', null, `Failed login attempt for email: ${email}`);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
+      logAction({ ip: req.ip, headers: req.headers, user: null },
+        'LOGIN_FAILED', 'User', user._id, `Wrong password for ${user.email}`);
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
     }
 
@@ -64,6 +70,10 @@ router.post('/login', async (req, res) => {
     }
 
     const token = user.generateToken();
+
+    // Attach user to req so logAction can read req.user
+    req.user = user;
+    logAction(req, 'LOGIN_SUCCESS', 'User', user._id, `${user.name} logged in (${user.role})`);
 
     res.json({
       success: true,

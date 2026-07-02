@@ -1,6 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useCommandPalette } from '../context/CommandPaletteContext';
+import NotificationBell from './NotificationBell';
 
 const icons = {
   dashboard: (<svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>),
@@ -17,6 +19,8 @@ const icons = {
   goals: (<svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>),
   feedback: (<svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>),
   reviews: (<svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>),
+  announcements: (<svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>),
+  payroll: (<svg className="w-4.5 h-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/><circle cx="17" cy="17" r="3"/><path d="M17 15.5v.5l.5.5"/></svg>),
 };
 
 const navGroups = [
@@ -27,7 +31,8 @@ const navGroups = [
       { to: '/attendance',      icon: icons.attendance,  label: 'Attendance',         managerOnly: false },
       { to: '/employees',       icon: icons.employees,   label: 'Employees',          managerOnly: true  },
       { to: '/leaves',          icon: icons.leaves,      label: 'My Leaves',          managerOnly: false },
-      { to: '/leave-approvals', icon: icons.approvals,   label: 'Leave Approvals',    managerOnly: true  },
+      { to: '/leave-approvals', icon: icons.approvals,      label: 'Leave Approvals',    managerOnly: true  },
+      // { to: '/announcements',   icon: icons.announcements,  label: 'Announcements',      managerOnly: false }, // Announcements module hidden
     ],
   },
   {
@@ -48,7 +53,8 @@ const navGroups = [
   {
     label: 'System',
     items: [
-      { to: '/settings', icon: icons.settings, label: 'Settings', managerOnly: false },
+      { to: '/payroll',  icon: icons.payroll,  label: 'Payroll',   managerOnly: false },
+      { to: '/settings', icon: icons.settings, label: 'Settings',  managerOnly: false },
     ],
   },
 ];
@@ -56,6 +62,7 @@ const navGroups = [
 export default function Sidebar() {
   const { user, logout, isManager } = useAuth();
   const { darkMode, toggleDarkMode } = useTheme();
+  const { setOpen: openPalette } = useCommandPalette();
   const navigate = useNavigate();
   const handleLogout = () => { logout(); navigate('/login'); };
 
@@ -66,10 +73,23 @@ export default function Sidebar() {
         <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg flex-shrink-0">
           <span className="text-white font-bold text-sm">R</span>
         </div>
-        <div>
+        <div className="flex-1">
           <div className="text-white font-bold text-base leading-tight">Radian</div>
           <div className="text-indigo-400 text-xs font-medium">HRMS Platform</div>
         </div>
+        <NotificationBell />
+      </div>
+
+      {/* Search / Command Palette trigger */}
+      <div className="px-3 pt-3 pb-1">
+        <button
+          onClick={() => openPalette(true)}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg bg-white/[0.04] hover:bg-white/[0.07] border border-white/[0.06] text-gray-500 hover:text-gray-300 transition-all duration-150 group"
+        >
+          <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <span className="text-[12px] flex-1 text-left">Search…</span>
+          <kbd className="text-[9px] font-mono border border-white/10 rounded px-1 py-0.5 opacity-60">⌘K</kbd>
+        </button>
       </div>
 
       {/* Nav Groups */}

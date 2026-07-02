@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
+import SkeletonLoader from '../components/SkeletonLoader';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import Breadcrumb from '../components/Breadcrumb';
 
 const priorityColors = {
   low: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
@@ -53,45 +55,45 @@ function GoalModal({ goal, employees, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0d1117] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
-          <h2 className="text-white font-semibold text-lg">{goal ? 'Edit Goal' : 'Create Goal'}</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+      <div className="bg-white dark:bg-[#0d1117] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-lg shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-white/5">
+          <h2 className="text-gray-900 dark:text-white font-semibold text-lg">{goal ? 'Edit Goal' : 'Create Goal'}</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
         <div className="p-6 space-y-4">
           {error && <div className="bg-red-500/10 border border-red-500/20 text-red-400 text-sm rounded-lg px-4 py-2">{error}</div>}
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Goal Title *</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Goal Title *</label>
             <input name="title" value={form.title} onChange={handle} placeholder="e.g. Complete Q2 sales target"
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500/60 transition-colors" />
+              className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500/60 transition-colors" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Description</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Description</label>
             <textarea name="description" value={form.description} onChange={handle} rows={2} placeholder="Brief description of the goal"
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-indigo-500/60 transition-colors resize-none" />
+              className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm placeholder-gray-400 dark:placeholder-gray-600 focus:outline-none focus:border-indigo-500/60 transition-colors resize-none" />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Assign To *</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Assign To *</label>
               <select name="assignedTo" value={form.assignedTo} onChange={handle}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors">
+                className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors">
                 <option value="">Select employee</option>
                 {employees.map(e => <option key={e._id} value={e._id}>{e.name}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Deadline *</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Deadline *</label>
               <input type="date" name="deadline" value={form.deadline} onChange={handle}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors" />
+                className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-1.5">Priority</label>
+              <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Priority</label>
               <select name="priority" value={form.priority} onChange={handle}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors">
+                className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors">
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
                 <option value="high">High</option>
@@ -99,9 +101,9 @@ function GoalModal({ goal, employees, onClose, onSaved }) {
             </div>
             {goal && (
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-1.5">Status</label>
+                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Status</label>
                 <select name="status" value={form.status} onChange={handle}
-                  className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors">
+                  className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/60 transition-colors">
                   <option value="pending">Pending</option>
                   <option value="in_progress">In Progress</option>
                   <option value="completed">Completed</option>
@@ -111,7 +113,7 @@ function GoalModal({ goal, employees, onClose, onSaved }) {
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 pb-6">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">Cancel</button>
           <button onClick={submit} disabled={saving}
             className="px-5 py-2 rounded-lg text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors disabled:opacity-50">
             {saving ? 'Saving…' : goal ? 'Update Goal' : 'Create Goal'}
@@ -138,35 +140,35 @@ function ProgressModal({ goal, onClose, onSaved }) {
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#0d1117] border border-white/10 rounded-2xl w-full max-w-sm shadow-2xl">
-        <div className="flex items-center justify-between p-6 border-b border-white/5">
-          <h2 className="text-white font-semibold">Update Progress</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+      <div className="bg-white dark:bg-[#0d1117] border border-gray-200 dark:border-white/10 rounded-2xl w-full max-w-sm shadow-2xl">
+        <div className="flex items-center justify-between p-6 border-b border-gray-100 dark:border-white/5">
+          <h2 className="text-gray-900 dark:text-white font-semibold">Update Progress</h2>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Status</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Status</label>
             <select value={form.status} onChange={e => setForm({...form, status: e.target.value})}
-              className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-indigo-500/60">
+              className="w-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-lg px-3 py-2.5 text-gray-900 dark:text-white text-sm focus:outline-none focus:border-indigo-500/60">
               <option value="pending">Pending</option>
               <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-400 mb-1.5">Progress: {form.progress}%</label>
+            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Progress: {form.progress}%</label>
             <input type="range" min={0} max={100} value={form.progress}
               onChange={e => setForm({...form, progress: Number(e.target.value)})}
               className="w-full accent-indigo-500" />
-            <div className="mt-2 h-2 bg-white/5 rounded-full overflow-hidden">
+            <div className="mt-2 h-2 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
               <div className="h-full bg-indigo-500 rounded-full transition-all" style={{ width: `${form.progress}%` }}></div>
             </div>
           </div>
         </div>
         <div className="flex justify-end gap-3 px-6 pb-6">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors">Cancel</button>
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">Cancel</button>
           <button onClick={submit} disabled={saving}
             className="px-5 py-2 rounded-lg text-sm bg-indigo-600 hover:bg-indigo-500 text-white font-medium transition-colors disabled:opacity-50">
             {saving ? 'Saving…' : 'Update'}
@@ -225,8 +227,9 @@ export default function Goals() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-white">Goals & Objectives</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Track and manage performance goals</p>
+          <Breadcrumb crumbs={[{ label: 'Goals & Objectives' }]} />
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Goals & Objectives</h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">Track and manage performance goals</p>
         </div>
         {isManager() && (
           <button onClick={() => setShowModal(true)}
@@ -245,7 +248,7 @@ export default function Goals() {
           { label: 'In Progress', value: stats.inProgress, color: 'text-blue-400' },
           { label: 'Pending', value: stats.pending, color: 'text-amber-400' },
         ].map(s => (
-          <div key={s.label} className="bg-[#0d1117] border border-white/5 rounded-2xl p-4">
+          <div key={s.label} className="bg-white dark:bg-[#0d1117] border border-gray-100 dark:border-white/5 rounded-2xl p-4">
             <div className={`text-2xl font-bold ${s.color}`}>{s.value}</div>
             <div className="text-gray-500 text-xs mt-1">{s.label}</div>
           </div>
@@ -253,10 +256,10 @@ export default function Goals() {
       </div>
 
       {/* Filter tabs */}
-      <div className="flex gap-1 bg-white/5 rounded-xl p-1 mb-6 w-fit">
+      <div className="flex gap-1 bg-gray-100 dark:bg-white/5 rounded-xl p-1 mb-6 w-fit">
         {['all', 'pending', 'in_progress', 'completed'].map(f => (
           <button key={f} onClick={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-white'}`}>
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors capitalize ${filter === f ? 'bg-indigo-600 text-white' : 'text-gray-400 hover:text-gray-900 dark:hover:text-white'}`}>
             {f === 'in_progress' ? 'In Progress' : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
@@ -264,21 +267,22 @@ export default function Goals() {
 
       {/* Goals list */}
       {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="flex gap-2">
-            {[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{animationDelay:`${i*0.1}s`}}></div>)}
-          </div>
+        /* 3 shimmer goal-card skeletons */
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <SkeletonLoader key={i} variant="card" className="h-28" />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-gray-600">No goals found.</div>
       ) : (
         <div className="space-y-3">
           {filtered.map(goal => (
-            <div key={goal._id} className="bg-[#0d1117] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-all">
+            <div key={goal._id} className="bg-white dark:bg-[#0d1117] border border-gray-100 dark:border-white/5 rounded-2xl p-5 hover:border-gray-200 dark:border-white/10 transition-all">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <h3 className="text-white font-semibold truncate">{goal.title}</h3>
+                    <h3 className="text-gray-900 dark:text-white font-semibold truncate">{goal.title}</h3>
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${priorityColors[goal.priority]}`}>{goal.priority}</span>
                     <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full border ${statusColors[goal.status]}`}>{statusLabel[goal.status]}</span>
                   </div>
@@ -300,7 +304,7 @@ export default function Goals() {
                   {isManager() && (
                     <>
                       <button onClick={() => { setEditGoal(goal); setShowModal(true); }}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-colors">
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
                       </button>
                       <button onClick={() => deleteGoal(goal._id)}
@@ -317,7 +321,7 @@ export default function Goals() {
                   <span>Progress</span>
                   <span>{goal.progress}%</span>
                 </div>
-                <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
+                <div className="h-1.5 bg-gray-100 dark:bg-white/5 rounded-full overflow-hidden">
                   <div className={`h-full rounded-full transition-all ${goal.status === 'completed' ? 'bg-emerald-500' : 'bg-indigo-500'}`}
                     style={{ width: `${goal.progress}%` }}></div>
                 </div>

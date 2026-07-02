@@ -5,6 +5,7 @@ import CandidateTable from '../components/recruitment/CandidateTable';
 import CandidateForm from '../components/recruitment/CandidateForm';
 import Modal from '../components/recruitment/Modal';
 import { PIPELINE_STAGES, STAGE_CONFIG } from '../components/recruitment/CandidatePipeline';
+import Breadcrumb from '../components/Breadcrumb';
 
 export default function Candidates() {
   const [candidates, setCandidates] = useState([]);
@@ -122,6 +123,7 @@ export default function Candidates() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
+          <Breadcrumb crumbs={[{ label: 'Candidates' }]} />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Candidates</h1>
           <p className="text-sm text-gray-400 dark:text-gray-500 mt-0.5">{candidates.length} total candidates in pipeline</p>
         </div>

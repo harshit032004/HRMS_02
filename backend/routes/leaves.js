@@ -8,15 +8,19 @@ const {
   approveLeave,
   rejectLeave,
   cancelLeave,
+  getMyBalance,
+  getEmployeeBalance,
 } = require('../controllers/leaveController');
 
 // Employee routes
 router.post('/apply', protect, applyLeave);
 router.get('/my', protect, getMyLeaves);
+router.get('/balance', protect, getMyBalance);
 router.delete('/:id', protect, cancelLeave);
 
 // HR/Admin/Manager routes
 router.get('/all', protect, authorize('admin', 'hr', 'manager'), getAllLeaves);
+router.get('/balance/:employeeId', protect, authorize('admin', 'hr', 'manager'), getEmployeeBalance);
 router.patch('/:id/approve', protect, authorize('admin', 'hr', 'manager'), approveLeave);
 router.patch('/:id/reject', protect, authorize('admin', 'hr', 'manager'), rejectLeave);
 

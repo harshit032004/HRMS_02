@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import SkeletonLoader from '../components/SkeletonLoader';
 import api from '../utils/api';
+import Breadcrumb from '../components/Breadcrumb';
 
 const inputCls = "w-full px-3.5 py-2.5 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5 text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-600 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-500 transition-all";
 
@@ -21,6 +24,7 @@ export default function Employees() {
   const [formError, setFormError] = useState('');
   const [formLoading, setFormLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const navigate = useNavigate();
 
   useEffect(() => { fetchEmployees(); }, []);
 
@@ -60,13 +64,26 @@ export default function Employees() {
   const active   = employees.filter(e => e.isActive).length;
   const inactive = employees.length - active;
 
-  if (loading) return <div className="flex items-center justify-center h-64"><div className="flex gap-2">{[0,1,2].map(i => <div key={i} className="w-2 h-2 rounded-full bg-indigo-500 animate-bounce" style={{animationDelay:`${i*0.1}s`}}/>)}</div></div>;
+  if (loading) return (
+    <div className="p-8 space-y-6">
+      {/* Keep the header visible while data loads */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Employees</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your workforce and team members</p>
+        </div>
+      </div>
+      {/* 5-row × 6-col skeleton table */}
+      <SkeletonLoader variant="table" rows={5} cols={6} />
+    </div>
+  );
 
   return (
     <div className="p-8 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <Breadcrumb crumbs={[{ label: 'Employees' }]} />
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Employees</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Manage your workforce and team members</p>
         </div>
@@ -133,12 +150,15 @@ export default function Employees() {
                   <p className="text-sm text-gray-400 dark:text-gray-500">No employees found.</p>
                 </td></tr>
               ) : filtered.map(emp => (
-                <tr key={emp._id} className="border-b border-gray-50 dark:border-white/[0.03] last:border-0 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors">
+                <tr key={emp._id} className="border-b border-gray-50 dark:border-white/[0.03] last:border-0 hover:bg-gray-50/50 dark:hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => navigate(`/employees/${emp._id}`)}>
                   <td className="px-5 py-3.5 text-xs font-mono text-gray-400 dark:text-gray-500">{emp.employeeId}</td>
                   <td className="px-5 py-3.5">
                     <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-indigo-600 dark:text-indigo-400 text-xs font-bold">{emp.name?.[0]?.toUpperCase() || '?'}</span>
+                      <div className="w-7 h-7 rounded-full overflow-hidden bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center flex-shrink-0">
+                        {emp.avatarUrl
+                          ? <img src={emp.avatarUrl} alt={emp.name} className="w-full h-full object-cover" />
+                          : <span className="text-indigo-600 dark:text-indigo-400 text-xs font-bold">{emp.name?.[0]?.toUpperCase() || '?'}</span>
+                        }
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-900 dark:text-white">{emp.name}</p>
@@ -159,7 +179,7 @@ export default function Employees() {
                   </td>
                   <td className="px-5 py-3.5">
                     {emp.isActive && (
-                      <button onClick={() => handleDeactivate(emp._id)}
+                      <button onClick={(e) => { e.stopPropagation(); handleDeactivate(emp._id); }}
                         className="px-3 py-1.5 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/30 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
                         Deactivate
                       </button>

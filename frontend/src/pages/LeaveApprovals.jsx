@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
+import Breadcrumb from '../components/Breadcrumb';
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
@@ -12,6 +13,36 @@ const StatusBadge = ({ status }) => {
   return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg[status] || cfg.pending}`}>{status?.charAt(0).toUpperCase()+status?.slice(1)}</span>;
 };
 
+// Mini balance pill shown next to each pending leave
+function BalancePill({ employeeId, leaveType, balanceCache, setBalanceCache }) {
+  const [bal, setBal] = useState(null);
+  const cacheKey = `${employeeId}-${leaveType}`;
+
+  useEffect(() => {
+    if (!employeeId) return;
+    if (balanceCache[cacheKey] !== undefined) {
+      setBal(balanceCache[cacheKey]);
+      return;
+    }
+    api.get(`/leaves/balance/${employeeId}`)
+      .then(res => {
+        const b = res.data.balance;
+        const remaining = b[leaveType]?.remaining ?? b.other?.remaining ?? 0;
+        setBalanceCache(prev => ({ ...prev, [cacheKey]: remaining }));
+        setBal(remaining);
+      })
+      .catch(() => {});
+  }, [employeeId, leaveType, cacheKey, balanceCache, setBalanceCache]);
+
+  if (bal === null) return null;
+  const color = bal === 0 ? 'bg-red-500/10 text-red-400 border-red-500/20' : bal <= 2 ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+  return (
+    <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-semibold border ${color} ml-1`}>
+      {bal}d left
+    </span>
+  );
+}
+
 export default function LeaveApprovals() {
   const [leaves, setLeaves] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +50,7 @@ export default function LeaveApprovals() {
   const [actionLoading, setActionLoading] = useState('');
   const [msg, setMsg] = useState({ text: '', type: '' });
   const [modal, setModal] = useState({ open: false, id: null, action: '', note: '' });
+  const [balanceCache, setBalanceCache] = useState({});
 
   const fetchLeaves = useCallback(async () => {
     setLoading(true);
@@ -66,6 +98,7 @@ export default function LeaveApprovals() {
     <div className="p-8 space-y-6">
       {/* Header */}
       <div>
+        <Breadcrumb crumbs={[{ label: 'Leave Approvals' }]} />
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Leave Approvals</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Review and manage employee leave requests</p>
       </div>
@@ -139,6 +172,14 @@ export default function LeaveApprovals() {
                         <div>
                           <p className="text-sm font-medium text-gray-900 dark:text-white whitespace-nowrap">
                             {leave.employee?.name || leave.employee?.email?.split('@')[0] || 'Unknown'}
+                            {leave.status === 'pending' && (
+                              <BalancePill
+                                employeeId={leave.employee?._id}
+                                leaveType={leave.leaveType || 'casual'}
+                                balanceCache={balanceCache}
+                                setBalanceCache={setBalanceCache}
+                              />
+                            )}
                           </p>
                           <p className="text-[11px] text-gray-400 dark:text-gray-500">{leave.employee?.department || leave.employee?.email || '—'}</p>
                         </div>

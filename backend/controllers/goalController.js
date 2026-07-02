@@ -1,4 +1,5 @@
 const Goal = require('../models/Goal');
+const { logAction } = require('../utils/auditLogger');
 
 // @desc  Create a new goal
 // @route POST /api/goals
@@ -26,6 +27,9 @@ const createGoal = async (req, res) => {
     ]);
 
     res.status(201).json({ success: true, goal: populated });
+
+    logAction(req, 'GOAL_CREATED', 'Goal', goal._id,
+      `${req.user.name} assigned goal "${goal.title}" to ${populated.assignedTo?.name || 'employee'}`);
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -88,6 +92,11 @@ const updateGoal = async (req, res) => {
     ]);
 
     res.json({ success: true, goal: updated });
+
+    logAction(req, 'GOAL_UPDATED', 'Goal', goal._id,
+      `${req.user.name} updated goal "${updated.title}"` +
+      (req.body.status ? ` → status: ${req.body.status}` : '') +
+      (req.body.progress !== undefined ? ` → progress: ${req.body.progress}%` : ''));
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -100,6 +109,9 @@ const deleteGoal = async (req, res) => {
   try {
     const goal = await Goal.findById(req.params.id);
     if (!goal) return res.status(404).json({ success: false, message: 'Goal not found' });
+
+    logAction(req, 'GOAL_DELETED', 'Goal', goal._id,
+      `${req.user.name} deleted goal "${goal.title}"`);
 
     await goal.deleteOne();
     res.json({ success: true, message: 'Goal deleted' });
